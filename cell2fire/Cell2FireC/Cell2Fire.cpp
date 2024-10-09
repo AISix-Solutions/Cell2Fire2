@@ -42,6 +42,9 @@ inputs df [1560000];
 std::unordered_map<int, std::vector<float>> BBOFactors;
 std::unordered_map<int, std::vector<int>> HarvestedCells;   
 std::vector<int> NFTypesCells;
+int forest_rows;
+int forest_cols;
+double forest_res;
 
 /******************************************************************************
 																Utils
@@ -150,9 +153,12 @@ Cell2Fire::Cell2Fire(arguments _args) : CSVWeather(_args.InFolder + "Weather.csv
 		
 	//DEBUGstd::cout << "------------------Detailed Data ----------------------\n" << std::endl;
 	this->rows = frdf.rows;
+	forest_rows=frdf.rows;
 	this->cols = frdf.cols;
+	forest_cols=frdf.cols;
 	this->nCells = rows * cols; 
 	this->cellSide = frdf.cellside;
+	forest_res=frdf.cellside;
 	this->areaCells= cellSide * cellSide;
 	this->perimeterCells = 4 * cellSide;
 	
@@ -418,7 +424,8 @@ Cell2Fire::Cell2Fire(arguments _args) : CSVWeather(_args.InFolder + "Weather.csv
 																Methods
 *******************************************************************************/
 // Init Cells
-void Cell2Fire::InitCell(int id){
+//Modified by GC to support spillover  
+void Cell2Fire::InitCell(int id, double xspl=0, double yspl=0){
 	// Declare an iterator to unordered_map
 	std::unordered_map<int, CellsFBP>::iterator it2;
 	
@@ -430,11 +437,12 @@ void Cell2Fire::InitCell(int id){
 	// Get object from unordered map
 	it2 = this->Cells_Obj.find(id);
 	
-	// Initialize the fire fields for the selected cel
-	it2->second.initializeFireFields(this->coordCells, this->availCells);
+	// Initialize the fire fields for the selected cell
+	it2->second.initializeFireFields(this->coordCells, this->availCells, xspl, yspl);
 	
 	// Print info for debugging
 	if (this->args.verbose) it2->second.print_info();
+	//it2->second.print_info();
 }
 
 
@@ -458,16 +466,18 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	// Initial status grid folder
 	if(this->args.OutputGrids){
 		CSVWriter CSVFolder("","");
-		this->gridFolder = "mkdir -p " + this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim);
+		this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids";
+		//this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
-		this->gridFolder = this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim) + "/";
+		this->gridFolder = this->args.OutFolder + "\\Grids";
 		//DEBUGstd::cout << "\nInitial Grid folder was generated in " << this->gridFolder << std::endl;
 	}
 	
 	// Messages Folder
 	if(this->args.OutMessages){
 		CSVWriter CSVFolder("","");
-		this->messagesFolder = "mkdir -p " + this->args.OutFolder + "/Messages/";
+		this->messagesFolder = "mkdir " + this->args.OutFolder + "/Messages/";
+		//this->messagesFolder = "mkdir -p " + this->args.OutFolder + "/Messages/";
 		CSVFolder.MakeDir(this->messagesFolder);
 		this->messagesFolder = this->args.OutFolder + "/Messages/";
 	}
@@ -479,9 +489,10 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	*/
 	
 	if(this->args.WeatherOpt.compare("random") == 0){
-		// Random Weather 	
-		this->CSVWeather.fileName = this->args.InFolder + "Weathers/Weather" + std::to_string(rnumber) + ".csv" ;
-
+		// Random Weather
+		 	
+		this->CSVWeather.fileName = this->args.InFolder + "Weathers/Weather" + std::to_string(this->sim) + ".csv" ;
+		
 		/* Weather DataFrame */
     try {
       this->WeatherDF = this->CSVWeather.getData();
@@ -631,7 +642,7 @@ bool Cell2Fire::RunIgnition(std::default_random_engine generator){
 
 	// Ignitions with provided points from CSV
 	else {
-		int temp = IgnitionPoints[this->year-1];
+		int temp = IgnitionPoints[this->sim-1];
 		
 		// If ignition Radius != 0, sample from the Radius set
 		if (this->args.IgnitionRadius > 0){
@@ -639,7 +650,6 @@ bool Cell2Fire::RunIgnition(std::default_random_engine generator){
 			std::uniform_int_distribution<int> udistribution(0, this->IgnitionSets[this->year - 1].size()-1);
             temp = this->IgnitionSets[this->year - 1][udistribution(generator)];          
 		}
-		
 		std::cout << "\nSelected ignition point for Year " << this->year <<  ", sim " <<  this->sim << ": "<< temp;
 	
 		// If cell is available 
@@ -755,6 +765,7 @@ bool Cell2Fire::RunIgnition(std::default_random_engine generator){
 std::unordered_map<int, std::vector<int>> Cell2Fire::SendMessages(){
 	// Iterator
 	std::unordered_map<int, CellsFBP>::iterator it;
+
 	
 	// Clean list 
 	this->burnedOutList.clear();
@@ -800,10 +811,12 @@ std::unordered_map<int, std::vector<int>> Cell2Fire::SendMessages(){
 		*/
 		if (it->second.ROSAngleDir.size() > 0) {
 			//std::cout << "Entra a Manage Fire" << std::endl;
+			//std::cout << "tf1"<< args_ptr->tf1 << std::endl;
 			if (!this->args.BBOTuning){
 				aux_list = it->second.manageFire(this->fire_period[this->year-1], this->availCells,  & df[cell-1], this->coef_ptr, 
 															   this->coordCells, this->Cells_Obj, this->args_ptr, &wdf[this->weatherPeriod],
-															   &this->FSCell, this->ROSRV);								
+															   &this->FSCell, this->ROSRV);
+	
 			}
 												
 			
@@ -824,16 +837,28 @@ std::unordered_map<int, std::vector<int>> Cell2Fire::SendMessages(){
 		if (aux_list.size() > 0 && aux_list[0] != -100) {
 			if (this->args.verbose) std::cout <<"\nList is not empty" << std::endl;
 			this->messagesSent = true;
-			sendMessageList[it->second.realId] = aux_list; 
+			
+			sendMessageList[it->second.realId] = aux_list;
+			for (auto & msg : sendMessageList[it->second.realId]){
+					//std::cout << "  Fire reaches the center of the cell " << msg << "  Distance to cell (in meters) was 100.0" << " " << std::endl;
+					//fp=it->second.fireProgress;
+					//dtc=it->second.distToCenter;
+					//std::cout<<"slopover distance: "<< fp[msg]-dtc[msg]<<endl;
+			}
+ 
+
 			if (this->args.verbose){
 				std::cout << "Message list content" << std::endl;
 				for (auto & msg : sendMessageList[it->second.realId]){
 					std::cout << "  Fire reaches the center of the cell " << msg << "  Distance to cell (in meters) was 100.0" << " " << std::endl;
+					//fp=it->second.fireProgress;
+					//dtc=it->second.distToCenter;
+					
+
 				}
 			}
-			
 		}
-
+		
 		// Repeat fire conditions if true flag
 		if (aux_list.size() > 0 && aux_list[0] == -100) {
 			this->repeatFire = true;
@@ -871,6 +896,10 @@ std::unordered_map<int, std::vector<int>> Cell2Fire::SendMessages(){
 void Cell2Fire::GetMessages(std::unordered_map<int, std::vector<int>> sendMessageList){
 	// Iterator 
 	std::unordered_map<int, CellsFBP>::iterator it;
+	std::unordered_map<int, double> fp;
+	std::unordered_map<int, double> dtc;
+	std::unordered_map<int, double> angDict;
+	
 	
 	// Information of the current step 
 	if (this->args.verbose){
@@ -928,22 +957,50 @@ void Cell2Fire::GetMessages(std::unordered_map<int, std::vector<int>> sendMessag
 	
 		// frequency array
 		std::unordered_map<int, int> globalMessagesList;
+		std::unordered_map<int, int> globalIgniterList;
+		
 		for (auto & sublist : sendMessageList) {
+			int test = sublist.first;
+			//std::cout << "msg:  " << test << std::endl;
+			//it = this->Cells_Obj.find(test);
+			//it->second.print_info();
 			for (int val : sublist.second) {
 				if (globalMessagesList.find(val) == globalMessagesList.end()){
 					globalMessagesList[val] = 1;
 				} else {
 					globalMessagesList[val] = globalMessagesList[val] + 1;
 				}
+				globalIgniterList[val]=test;
 			}
 		}
 		
 		// Initialize cells if needed (getting messages)
 		for (auto & _bc : globalMessagesList) {
+			
 			int bc = _bc.first;
+			//int test = _bc.second;
 			if (this->Cells_Obj.find(bc) == this->Cells_Obj.end() && this->burntCells.find(bc) == this->burntCells.end()) {			
 				// Initialize cell, insert it inside the unordered map
-				InitCell(bc);
+				
+				//for (auto & msg : sendMessageList){
+				//std::cout << "msg:  " << test << std::endl;
+				//}
+				int ign_src = globalIgniterList[bc];
+				it = this->Cells_Obj.find(ign_src);
+				//it->second.print_info();
+
+				fp=it->second.fireProgress;
+				dtc=it->second.distToCenter;
+				angDict=it->second.angleDict;
+				double splovr_dist=fp[bc]-dtc[bc];
+
+				//std::cout<<"spillover Distance: "<< fp[bc]-dtc[bc]<<endl;
+				//std::cout<<"spillover Angle: "<< angDict[bc]<<endl;
+				double xspl = splovr_dist*std::cos(angDict[bc]*3.14159/180);
+				double yspl = splovr_dist*std::sin(angDict[bc]*3.14159/180);
+				//std::cout<<"xspl: "<< xspl<<endl;
+				//std::cout<<"yspl: "<< yspl<<endl;
+				InitCell(bc,xspl,yspl);
 				it = this->Cells_Obj.find(bc);
 			}
 		}
@@ -1100,15 +1157,17 @@ void Cell2Fire::Results(){
 	if(this->args.FinalGrid){
 		CSVWriter CSVFolder("","");
 		if (this->args.OutFolder.empty())
-			this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts/Grids/Grids" + std::to_string(this->sim);
+			//this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
+			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids";
 		else
-			this->gridFolder = "mkdir -p " + this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim);
+			//this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+			this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids";
 		CSVFolder.MakeDir(this->gridFolder);
 		
 		if (this->args.OutFolder.empty())
-			this->gridFolder = this->args.InFolder + "simOuts/Grids/Grids" + std::to_string(this->sim) + "/";
+			this->gridFolder = this->args.InFolder + "simOuts\\Grids" + "\\";
 		else
-			this->gridFolder = this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim) + "/";
+			this->gridFolder = this->args.OutFolder + "\\Grids"  + "\\";
 		//std::string gridName = this->gridFolder + "FinalStatus_" + std::to_string(this->sim) + ".csv";
 		outputGrid();
 		
@@ -1160,6 +1219,7 @@ void Cell2Fire::Results(){
 
 
 // Generate the binary grids
+//Modified by GC for compatibility with BP3+
 void Cell2Fire::outputGrid(){
 	// FileName
 	std::string gridName;
@@ -1175,14 +1235,8 @@ void Cell2Fire::outputGrid(){
 	for (auto & hc : this->harvestCells){
 			statusCells2[hc-1] = -1;
 	}
-		
-	if (this->gridNumber < 10){
-			gridName = this->gridFolder+ "ForestGrid0" + std::to_string(this->gridNumber) + ".csv";
-	}
-	
-	else {
-			gridName = this->gridFolder+ "ForestGrid" + std::to_string(this->gridNumber) + ".csv";
-	}
+
+	gridName = this->gridFolder+ "ForestGrid" + std::to_string(this->sim) + ".csv";
 	
 	if(this->args.verbose){
 		std::cout  << "We are plotting the current forest to a csv file " << gridName << std::endl;
@@ -1396,6 +1450,11 @@ int main(int argc, char * argv[]){
 	arguments args;
 	arguments * args_ptr = &args;
 	parseArgs(argc, argv, args_ptr);
+	//std::cout << "\n tf1 ptr: " <<args_ptr->tf1 <<"\n";
+	//std::cout << "\n tf1: " <<args.tf1 <<"\n";
+	//std::cout << "\n tf1: " <<argv[1] <<"\n";
+	//std::cout << "\n tf1: " <<argv[2] <<"\n";
+	//std::cout << "\n tf1: " <<argv[4] <<"\n";
 	//printArgs(args);
 	
 	// Random generator and distributions

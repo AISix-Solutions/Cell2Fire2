@@ -7,6 +7,7 @@
 #include "ReadArgs.h"
 #include "Ellipse.h"
 
+
 #include <stdio.h>
 #include <math.h>
 #include <unordered_map>
@@ -14,11 +15,16 @@
 #include <string>
 #include <vector>
 
+
 using namespace std;
 
+extern int forest_rows;
+extern int forest_cols;
+extern double forest_res;
 class CellsFBP {
     // TODO: find where to put the enums
     public:
+
         // immutable
         int id;
         int fType;
@@ -59,7 +65,7 @@ class CellsFBP {
 					 int _status, std::unordered_map<std::string, int> & _adjacents, 
 					 int _realId);
         
-		void initializeFireFields(std::vector<std::vector<int>> & coordCells, std::unordered_set<int> & availSet); // TODO: need TYPE
+		void initializeFireFields(std::vector<std::vector<int>> & coordCells, std::unordered_set<int> & availSet, double xspl, double yspl); // TODO: need TYPE
        
 	    void ros_distr_old(double thetafire, double forward, double flank, double back);
 		double rhoTheta(double theta, double a, double b);
@@ -92,7 +98,7 @@ class CellsFBP {
 		
 		void print_info();
 		
-		
+		double cfac(int angle, double E, double aw);
 		
 		
 	private:

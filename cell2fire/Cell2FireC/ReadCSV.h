@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
- 
+
 /*
 *   Weather structure
 */
@@ -78,5 +78,5 @@ public:
 	// Prints individual weather row info
 	void printWeatherDF(weatherDF wdf);
 };
- 
+
 #endif

@@ -97,7 +97,7 @@ class Cell2Fire {
         Cell2Fire(arguments args);
 		
 		// Methods
-		void InitCell(int id);
+		void InitCell(int id, double xspl, double yspl);
         void reset(int rnumber, double rnumber2);
 		bool RunIgnition(std::default_random_engine generator);
 		std::unordered_map<int, std::vector<int>> SendMessages();

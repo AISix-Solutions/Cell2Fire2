@@ -5,10 +5,13 @@
 #include "ReadCSV.h"
 #include "ReadArgs.h"
 #include "Ellipse.h"
+#include "Cell2Fire.h"
+
 
 // Include libraries
 #include <stdio.h>
 #include <stdlib.h>
+#include <boost/math/interpolators/cardinal_cubic_b_spline.hpp>
 #include <string>
 #include <vector>
 #include <math.h>
@@ -19,14 +22,21 @@
 #include <string>
 #include <string.h>
 #include <random>
+#include <chrono>
+
 //#define RAND_MAX 0.5
 
 using namespace std;
 
-
 /*
 	Constructor   // WORKING CHECK OK
 */
+std::default_random_engine generator(std::random_device{}());
+std::uniform_real_distribution<double> distribution_r(0.0,0.45);
+std::uniform_real_distribution<double> distribution_t(0.0,2*3.14159);
+int cnt=0;
+
+
 CellsFBP::CellsFBP(int _id, double _area, std::vector<int> _coord,  
 							int _fType, std::string _fType2, double _perimeter, 
 							int _status, std::unordered_map<std::string, int> & _adjacents, 
@@ -92,15 +102,43 @@ CellsFBP::CellsFBP(int _id, double _area, std::vector<int> _coord,
     AvailSet       int set
 */
 void CellsFBP::initializeFireFields(std::vector<std::vector<int>> & coordCells,    // TODO: should probably make a coordinate type
-												std::unordered_set<int> & availSet) 				// WORKING CHECK OK
-{  
+												std::unordered_set<int> & availSet, double xspl=0, double yspl=0) 				// WORKING CHECK OK
+{ 	double sample_r1 = distribution_r(generator);
+	double sample_t1 = distribution_t(generator);
+	double a_mod1=sample_r1*std::cos(sample_t1);
+	double b_mod1=sample_r1*std::sin(sample_t1);
+
+
+
+
     for (auto & nb : this->adjacents) {
         // CP Default value is replaced: None = -1
 		//std::cout << "DEBUG1: adjacent: " << nb.second << std::endl;
         if (nb.second != -1) {
-            int a = -1 * coordCells[nb.second - 1][0] + coordCells[this->id][0];
-            int b = -1 * coordCells[nb.second - 1][1] + coordCells[this->id][1];
-            
+            int ai = -1 * coordCells[nb.second - 1][0] + coordCells[this->id][0];
+            int bi = -1 * coordCells[nb.second - 1][1] + coordCells[this->id][1];
+
+			double a = -1 * coordCells[nb.second - 1][0] + coordCells[this->id][0];
+            double b = -1 * coordCells[nb.second - 1][1] + coordCells[this->id][1];
+			
+
+			double sample_r2 = distribution_r(generator);
+			double sample_t2 = distribution_t(generator);
+			double a_mod2=sample_r2*std::cos(sample_t2);
+			double b_mod2=sample_r2*std::sin(sample_t2);
+
+			
+			if (ai!=0 && bi!=0){
+				a=a+(a_mod1+a_mod2)*1.414;
+				b=b+(b_mod1+b_mod2)*1.414;
+			}
+			else {
+				a=a+(a_mod1+a_mod2);
+				b=b+(b_mod1+b_mod2);
+			}
+
+			
+		
             int angle = -1;
             if (a == 0) {
                 if (b >= 0) 
@@ -116,7 +154,7 @@ void CellsFBP::initializeFireFields(std::vector<std::vector<int>> & coordCells, 
             }
             else {
                 // TODO: check this logi
-                double radToDeg = 180 / M_PI;
+                double radToDeg = 180 / 3.14159;
                 // TODO: i think all the negatives and abs cancel out
                 double temp = std::atan(b * 1.0 / a) * radToDeg;
                 if (a > 0)
@@ -125,15 +163,21 @@ void CellsFBP::initializeFireFields(std::vector<std::vector<int>> & coordCells, 
                     temp += 360;
                 angle = temp;
             }
-
+			//std::cout << "angle :" << angle << std::endl;
             this->angleDict[nb.second] = angle;
             if (availSet.find(nb.second) != availSet.end()) {
                 // TODO: cannot be None, replaced None = -1   and ROSAngleDir has a double inside 
                 this->ROSAngleDir[angle] = -1;
             }
+			
+
             this->angleToNb[angle] = nb.second;
-            this->fireProgress[nb.second] = 0.0;
-            this->distToCenter[nb.second] = std::sqrt(a * a + b * b) * this->_ctr2ctrdist;
+			//For fire spill over
+			double fp=xspl*std::cos(angle*3.14159/180)+yspl*std::sin(angle*3.14159/180);
+            this->fireProgress[nb.second] = std::max(0.0,fp);
+			
+			//0.98 is a bias correction factor related to the randomized centers
+            this->distToCenter[nb.second] = 0.98*std::sqrt(a * a + b * b) * this->_ctr2ctrdist;
         }
     }
 }
@@ -141,7 +185,7 @@ void CellsFBP::initializeFireFields(std::vector<std::vector<int>> & coordCells, 
         
 		
 /*
-    New functions for calculating the ROS based on the fire angles
+    New functions for calculating the ROS baed on the fire angles
 	Distribute the rate of spread (ROS,ros) to the axes given in the AngleList.
     All angles are w.t.r. E-W with East positive and in non-negative degrees.
     Inputs:
@@ -179,21 +223,27 @@ void CellsFBP::ros_distr_old(double thetafire, double forward, double flank, dou
 }	
 
 
+
+
+
 double CellsFBP::rhoTheta(double theta, double a, double b){
 	const double pi = 3.141592653589793;
-	
 	double c2, e, r1, r2, r;
+
 	
 	c2 = std::pow(a, 2) - std::pow(b, 2);
 	e = std::sqrt(c2) / a;
-	
+
+
 	r1 = a * (1 - std::pow(e, 2));
 	r2 = 1 - e * std::cos(theta * pi / 180.0);
 	r = r1 / r2;
+
+	
 	return r;
 }
 
-void CellsFBP::ros_distr(double thetafire, double forward, double flank, double back, double EFactor) {   // WORKING CHECK OK
+void CellsFBP::ros_distr(double thetafire, double forward, double flank, double back, double EFactor){   // WORKING CHECK OK
     
 	// Ellipse points 
 	//std::cout << "Dentro de ROS dist" << std::endl;
@@ -208,6 +258,7 @@ void CellsFBP::ros_distr(double thetafire, double forward, double flank, double 
 	//std::cout << "Previo Data" << std::endl;
 	double a = (forward + back) / 2;
 	double b;
+	const double pi = 3.141592653589793;
 	std::vector<double> _x = {0.0, back, back, (forward + back) / 2., (forward + back) / 2., (forward + back)};
 	std::vector<double> _y = {0.0, std::pow(flank, 2) / a, - (std::pow(flank, 2) / a), flank, -flank, 0.0};
 	//std::cout << "Post data" << std::endl;
@@ -215,25 +266,235 @@ void CellsFBP::ros_distr(double thetafire, double forward, double flank, double 
 	// Fit the Ellipse
 	//std::cout << "Previo Ellipse" << std::endl;
 	Ellipse SqlEllipse(_x, _y);     // DEBUGGING
-	//std::cout << "Inicializo" << std::endl;
+	
 	std::vector<double> params = SqlEllipse.get_parameters();
 	a = params[0];
 	b = params[1];
+
+	double c2 = std::pow(a, 2) - std::pow(b, 2);
+	double e = std::sqrt(c2) / a;
+
+
+
+	//Get info about forest map.
+	int rows=forest_rows;
+	int cols = forest_cols;
+	double res = forest_res;
 	
-	//std::cout << "a:" << a << std::endl; 
-	//std::cout << "b:" << b << std::endl; 
 	
+	if (e>.9 && this->adjacents["EX1"]==0 && (float) forest_res/a<30){
+		//Get center pixel ID
+		int n=this->realId;
+
+		//Find pixel within 10 x 10 window that aligns well with the direction of
+		//spread.
+		float ntf=std::sin(thetafire*pi/180);
+		float etf=std::cos(thetafire*pi/180);
+		float riserun= std::abs(ntf/etf);
+		int flip=0;
+		if (riserun>1){
+			riserun=1/riserun;
+			flip=1;
+		}
+		//Here I use Farey fractions to find a cell within some window
+		//that is most closely aligned with the direction of fire spread. This
+		//method produces two Farey fractions that bound the actual spread direction
+		int a=0, b=1, c=1, d=1;
+		float ffrac;
+		//Use 11 for 30m?
+		while(b+d<8){
+			ffrac=float (a+c)/(b+d);
+			if (ffrac<riserun){
+				a=a+c;
+				b=b+d;
+			}
+			else if (ffrac>riserun){
+				c=a+c;
+				d=b+d;
+			}
+	
+		}
+
+		//Pick whichever of the two bounding fraction is closest. 
+		if (std::abs((float)a/(float)b-riserun)>std::abs((float)c/(float)d-riserun)){
+			a=c;
+			b=d;
+		}
+
+		//If the chosen Farey fraction is in the Moore neighborhood we push
+		//it way out.
+
+		//Use 8 for 30m?
+		if (a+b<=2){
+			a=a*6;
+			b=b*6;	
+		}
+
+		//Here we select two more points along a line that is approx perpendicular
+		// to the fire rate of spread. This will give three spread directions
+		//That should capture the front of the ellipse fairly well.
+		int e_off, n_off;
+		int cl_ax=15*std::round(thetafire/15);
+		if (cl_ax>=180){
+			cl_ax=cl_ax-180;
+		}
+
+		//Lots of if statements to get the approx perpendicular direction. Here
+		//we use 15 degree increments. 
+		if (cl_ax==0){
+			e_off=0;
+			n_off=1;
+		}
+		else if (cl_ax==15){
+			e_off=-1;
+			n_off=3;
+		}
+		else if (cl_ax==30){
+			e_off=-1;
+			n_off=2;
+		}
+		else if (cl_ax==45){
+			e_off=-1;
+			n_off=1;
+		}
+		else if (cl_ax==60){
+			e_off=-2;
+			n_off=1;
+		}
+		else if (cl_ax==75){
+			e_off=-3;
+			n_off=1;
+		}
+		else if (cl_ax==90){
+			e_off=1;
+			n_off=0;
+		}
+		else if (cl_ax==105){
+			e_off=3;
+			n_off=1;
+		}
+		else if (cl_ax==120){
+			e_off=2;
+			n_off=1;
+		}
+		else if (cl_ax==135){
+			e_off=1;
+			n_off=1;
+		}
+		else if (cl_ax==150){
+			e_off=1;
+			n_off=2;
+		}
+		else if (cl_ax==165){
+			e_off=1;
+			n_off=3;
+		}
+
+	
+
+		//Define the northing and easting coords for the cell best aligned 
+		//with fire spread direction
+		int ex1_n=a, ex1_e=b;
+		
+		//Flip E and N if we flipped rise/run above and make sure we're in the 
+		//right quadrant. This is all done  to make finding the desired Farey 
+		//fraction faster by exploiting radial symmetry
+		if (flip==1){
+			std::swap(ex1_n, ex1_e);
+		}
+
+		if (ntf<0){
+			ex1_n=-1*ex1_n;
+		}
+
+		if (etf<0){
+			ex1_e=-1*ex1_e;
+		}
+
+
+		//Calc the E and N coord of the two points along the perpendicular. 		
+		int ex2_n=ex1_n+n_off,ex2_e=ex1_e+e_off,ex3_n=ex1_n-n_off, ex3_e=ex1_e-e_off;
+
+		std::vector<int> n_vec = {ex1_n, ex2_n, ex3_n};
+		std::vector<int> e_vec = {ex1_e, ex2_e, ex3_e};
+
+		/*
+		std::cout << "****************" << std::endl;
+		std::cout << "Thetafire 1 :" << thetafire << std::endl;
+		std::cout << "N 1 :" << ex1_n << std::endl;
+		std::cout << "E 2 :" << ex1_e << std::endl;
+		std::cout << "N 2 :" << ex2_n << std::endl;
+		std::cout << "E 2 :" << ex2_e << std::endl;
+		std::cout << "N 3 :" << ex3_n << std::endl;
+		std::cout << "E 3 :" << ex3_e << std::endl;
+		*/
+		for (int i = 0, ln= std::size( n_vec ); i < ln; i++) {
+			//Calc ID of relevant cell based on N and E coords
+			int ex_n=n_vec[i],ex_e=e_vec[i];
+			int ex_id=n-ex_n*cols+ex_e;
+
+			//Skip if index is out of bounds of forest
+			if (ex_id<1 || ex_id>rows*cols){
+				continue;
+			}
+
+			//Assign Name. EX1 will always be the cell most closely aligned
+			//with fire spread direction
+			string ex_name="EX"+std::to_string(i+1);
+			this->adjacents[ex_name]=ex_id;
+			int ex_ang;
+
+			//Populate other fields needed for spreading fire. 
+			if (i==0){ 
+				ex_ang=90-std::atan2(ex_e,ex_n)*180/pi;
+				this->distToCenter[ex_id]=std::sqrt(std::pow((ex_n)*res,2)+std::pow((ex_e)*res,2));
+			}
+			else{
+				double rr=std::sqrt(ex1_e*ex1_e+ex1_n*ex1_n)*.1;
+				double sample_r2 = rr*distribution_r(generator);
+				double sample_t2 = distribution_t(generator);
+				double a_mod2=sample_r2*std::cos(sample_t2);
+				double b_mod2=sample_r2*std::sin(sample_t2);
+
+				double sample_r1 = rr*distribution_r(generator);
+				double sample_t1 = distribution_t(generator);
+				double a_mod1=sample_r1*std::cos(sample_t1);
+				double b_mod1=sample_r1*std::sin(sample_t1);
+				ex_ang=90-std::atan2(ex_e+a_mod1+a_mod2,ex_n+b_mod1+b_mod2)*180/pi;
+				this->distToCenter[ex_id]=std::sqrt(std::pow((ex_n+a_mod1+a_mod2)*res,2)+std::pow((ex_e+b_mod1+b_mod2)*res,2));
+
+			}
+			this->angleDict[ex_id]=ex_ang;
+			this->ROSAngleDir[ex_ang]=-1;
+			this->angleToNb[ex_ang]=ex_id;
+			this->fireProgress[ex_id]=0;
+		}
+
+		}
+
+    
+
+
+
 	// Ros allocation for each angle inside the dictionary
 	for (auto & angle : this->ROSAngleDir) {
-        double offset = angle.first - thetafire;
+		//std::cout << "angle :" << angle.first << std::endl;
+        
+		double offset = angle.first - thetafire;
+
 		
 		if (offset < 0) {
             offset += 360;
         }
 		if (offset > 360) {
             offset -= 360;
-        }
-        this->ROSAngleDir[angle.first] = rhoTheta(offset, a, b) * EFactor;
+        
+		}
+		
+		
+        //this->ROSAngleDir[angle.first] = rhoTheta(offset, a, b) * EFactor;
+		this->ROSAngleDir[angle.first] = rhoTheta(offset, a, b) * EFactor;
+		
     }	
 }			
 		
@@ -276,11 +537,11 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 	{
 	// Special flag for repetition (False = -99 for the record)
 	int repeat = -99;
-	
     // msg lists contains integers (True = -100)
     std::vector<int> msg_list_aux;
 	msg_list_aux.push_back(0);
     std::vector<int> msg_list;
+
 
 	df_ptr->waz = wdf_ptr->waz;
 	df_ptr->ws = wdf_ptr->ws;
@@ -400,7 +661,10 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
         std::cout << "Std Normal RV for Stochastic ROS CV: " << ROSRV << std::endl;
     }
 
+	
+
 	// If cell cannot send (thresholds), then it will be burned out in the main loop
+
     double HROS = (1 + args->ROSCV * ROSRV) * headstruct.ros * args->HFactor;
     	
 	// Extra debug step for sanity checks
@@ -423,11 +687,13 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 		// ROS distribution method
         //ros_distr(mainstruct.raz,  headstruct.ros, flankstruct.ros, backstruct.ros);
 		//std::cout << "Entra a Ros Dist" << std::endl;
+
 		ros_distr(cartesianAngle,  
 					  headstruct.ros * args->HFactor, 
 					  flankstruct.ros * args->FFactor, 
 					  backstruct.ros * args->BFactor,
 					  args->EFactor);
+
         //std::cout << "Sale de Ros Dist" << std::endl;		
 		
 		// Fire progress using ROS from burning cell, not the neighbors //
@@ -453,6 +719,8 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 		    // If the message arrives to the adjacent cell's center, send a message
             if (this->fireProgress[nb] >= this->distToCenter[nb]) {
                 msg_list.push_back(nb);
+				//msg_list.push_back(fireProgress[nb]-distToCenter[nb]);
+				//std::cout << fireProgress[nb]-distToCenter[nb] << std::endl;
 				FSCell->push_back(double(this->realId));
 				FSCell->push_back(double(nb));
 				FSCell->push_back(double(period));
@@ -500,6 +768,7 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
     if (args->verbose){
 		std::cout << " ----------------- End of new manageFire function -----------------" << std::endl;
 	}
+	
     return msg_list;
 }
     
@@ -784,6 +1053,14 @@ bool CellsFBP::get_burned(int period, int season, int NMsg, inputs df[],  fuel_c
 		std::cout << "Flanks ROS Value :" << flankstruct.ros * args->FFactor << std::endl;
 		std::cout << "Rear ROS Value :" << backstruct.ros * args->BFactor << std::endl;
 	}
+
+	if (cnt==0){ 
+		std::cout << "\nMain Angle :" << mainstruct.raz << std::endl;
+		std::cout << "Front ROS Value :" << headstruct.ros * args->HFactor << std::endl;
+		std::cout << "Flanks ROS Value :" << flankstruct.ros * args->FFactor << std::endl;
+		std::cout << "Rear ROS Value :" << backstruct.ros * args->BFactor << std::endl;
+	}
+	cnt=cnt+1;
     
 	// Check a threshold for the ROS
     if (headstruct.ros  * args->HFactor > args->ROSThreshold) {

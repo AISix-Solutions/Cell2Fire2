@@ -17,6 +17,7 @@ typedef struct{
 	std::string InFolder, OutFolder, WeatherOpt, HarvestPlan;
 	bool OutMessages, Trajectories, NoOutput, verbose, Ignitions, OutputGrids, FinalGrid, PromTuned, Stats, BBOTuning;
 	float ROSCV, ROSThreshold, HFIThreshold, HFactor, FFactor, BFactor, EFactor, FirePeriodLen;
+	float tf1, tf2, tf3;
 	int MinutesPerWP, MaxFirePeriods, TotalYears, TotalSims, NWeatherFiles, IgnitionRadius, seed;
 	std::unordered_set<int>  HCells, BCells;
 } arguments;

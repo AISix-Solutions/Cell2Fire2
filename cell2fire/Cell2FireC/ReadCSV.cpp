@@ -1,6 +1,7 @@
 #include "ReadCSV.h"
 #include "FBP5.0.h"
 
+
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
@@ -11,7 +12,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <boost/algorithm/string.hpp>
- 
+#include <random>
+using namespace std;
 /*
  * Constructur
  */
@@ -339,6 +341,9 @@ void CSVReader::parseBBODF(std::unordered_map<int, std::vector<float>> & bbo, st
 	
 	
 }
+std::uniform_int_distribution<int> dist1(1,2);
+std::uniform_int_distribution<int> dist2(2,3);
+std::default_random_engine generator2(std::random_device{}());
 
 void CSVReader::parseForestDF(forestDF * frt_ptr, std::vector<std::vector<std::string>> & DF){
 	// Ints 
@@ -360,6 +365,8 @@ void CSVReader::parseForestDF(forestDF * frt_ptr, std::vector<std::vector<std::s
     std::string NorthWest = "NW";
     std::string SouthEast = "SE";
     std::string SouthWest = "SW";
+	std::string Supp1 = "S1";
+
 	
 	// Filling DF
 	//DEBUGprintf("Populating Forest DF\n");
@@ -367,6 +374,7 @@ void CSVReader::parseForestDF(forestDF * frt_ptr, std::vector<std::vector<std::s
 	cols = std::stoi (DF[0][1], &sz);
 	rows = std::stoi (DF[1][1], &sz);
 	cellside = std::stoi (DF[4][1], &sz);
+ 	int forest_rows=10;
 	
 	//DEBUGprintf("cols: %d,  rows:  %d,   cellside:  %d\n", cols, rows, cellside);
 	
@@ -426,8 +434,9 @@ void CSVReader::parseForestDF(forestDF * frt_ptr, std::vector<std::vector<std::s
                         adjCells.push_back(Aux);
 						n++;
 					}
-                    if (c>0 && c<cols-1){    
-                        Aux = {{North, n-cols}, {NorthEast, n-cols+1} , {NorthWest, n-cols-1}, {South, n+cols}, 
+
+                    if (c>0 && c<cols-1){
+						Aux = {{North, n-cols}, {NorthEast, n-cols+1} , {NorthWest, n-cols-1}, {South, n+cols}, 
 									{SouthEast, n+cols+1} , {SouthWest, n+cols-1}, {East, n+1}, {West, n-1}};
 						adjCells.push_back(Aux);
                         n++;    

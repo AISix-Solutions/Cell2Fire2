@@ -459,16 +459,18 @@ void Cell2Fire::reset(int rnumber, double rnumber2, int simExt=1){
 	// Initial status grid folder
 	if(this->args.OutputGrids){
 		CSVWriter CSVFolder("","");
-		this->gridFolder = "mkdir -p " + this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim);
+		this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+		// this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
-		this->gridFolder = this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim) + "/";
+		this->gridFolder = this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim) + "\\";
 		//DEBUGstd::cout << "\nInitial Grid folder was generated in " << this->gridFolder << std::endl;
 	}
 	
 	// Messages Folder
 	if(this->args.OutMessages){
 		CSVWriter CSVFolder("","");
-		this->messagesFolder = "mkdir -p " + this->args.OutFolder + "/Messages/";
+		this->messagesFolder = "mkdir " + this->args.OutFolder + "/Messages/";
+		// this->messagesFolder = "mkdir -p " + this->args.OutFolder + "/Messages/";
 		CSVFolder.MakeDir(this->messagesFolder);
 		this->messagesFolder = this->args.OutFolder + "/Messages/";
 	}
@@ -641,7 +643,7 @@ bool Cell2Fire::RunIgnition(std::default_random_engine generator, int rnumber3){
             temp = this->IgnitionSets[this->year - 1][udistribution(generator)];          
 		}
 		
-		std::cout << "\nSelected ignition point for Year " << this->year <<  ", sim " <<  this->sim << ": "<< temp;
+		std::cout << "\nSelected ignition point for Year?? " << this->year <<  ", sim " <<  this->sim << ": "<< temp;
 	
 		// If cell is available 
 		if (this->burntCells.find(temp) == this->burntCells.end() && this->statusCells[temp - 1] < 3) {
@@ -1101,15 +1103,17 @@ void Cell2Fire::Results(){
 	if(this->args.FinalGrid){
 		CSVWriter CSVFolder("","");
 		if (this->args.OutFolder.empty())
-			this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts/Grids/Grids" + std::to_string(this->sim);
+			// this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
+			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
 		else
-			this->gridFolder = "mkdir -p " + this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim);
+			// this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
 		
 		if (this->args.OutFolder.empty())
-			this->gridFolder = this->args.InFolder + "simOuts/Grids/Grids" + std::to_string(this->sim) + "/";
+			this->gridFolder = this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim) + "\\";
 		else
-			this->gridFolder = this->args.OutFolder + "/Grids/Grids" + std::to_string(this->sim) + "/";
+			this->gridFolder = this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim) + "\\";
 		//std::string gridName = this->gridFolder + "FinalStatus_" + std::to_string(this->sim) + ".csv";
 		outputGrid();
 		

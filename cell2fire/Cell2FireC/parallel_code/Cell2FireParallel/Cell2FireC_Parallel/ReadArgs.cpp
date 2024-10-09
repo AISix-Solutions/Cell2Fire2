@@ -155,8 +155,16 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 	float dEFactor = 1.0;
 	float dinput_PeriodLen= 1.;
 	
+	//GC added tuning factors
+	float dtf1=4.0;
+	float dtf2=1.0;
+	float dtf3=1.0;
+
+	
 	// aux 
 	std::string::size_type sz;
+
+	
 
 	//--sim-years  (float)
 	char * sim_years = getCmdOption(argv, argv + argc, "--sim-years");
@@ -273,6 +281,7 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 		args_ptr->MaxFirePeriods = std::stoi (max_fire_periods ,&sz); 
     }
 	else args_ptr->MaxFirePeriods = dmax_fire_periods;
+
 	
 	//--seed  (int)
 	char * seed = getCmdOption(argv, argv + argc, "--seed");
@@ -289,6 +298,29 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 		args_ptr->nthreads = std::stoi (nthreads ,&sz); 
     }
 	else args_ptr->nthreads = dnthreads;
+
+
+	//GC add tf1
+	char * tf1 = getCmdOption(argv, argv + argc, "--tf1");
+    if (tf1){
+    printf("tf1: %s \n", tf1);
+		args_ptr->tf1 = std::stof (tf1 ,&sz); 
+    }
+	else args_ptr->tf1 = dtf1;
+	
+	char * tf2 = getCmdOption(argv, argv + argc, "--tf2");
+    if (tf2){
+    printf("tf2: %s \n", tf2);
+		args_ptr->tf2 = std::stof (tf2 ,&sz); 
+    }
+	else args_ptr->tf2 = dtf2;
+
+	char * tf3 = getCmdOption(argv, argv + argc, "--tf3");
+    if (tf3){
+    printf("tf3: %s \n", tf3);
+		args_ptr->tf3 = std::stof (tf3 ,&sz); 
+    }
+	else args_ptr->tf3 = dtf3;
 	
 	// Populate structure
 	// Strings 
@@ -330,6 +362,8 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 	args_ptr->PromTuned = prom_tuned;
 	args_ptr->Stats = out_stats;   
 	args_ptr->BBOTuning = bbo_tuning;   
+
+	
 	
 }
 
@@ -356,7 +390,8 @@ void printArgs(arguments args){
 	std::cout << "noOutput: " << args.NoOutput << std::endl; 
 	std::cout << "verbose: " << args.verbose << std::endl; 
 	std::cout << "seed: " << args.seed << std::endl; 
-	std::cout << "nthreads: " << args.nthreads << std::endl; 
+	std::cout << "nthreads: " << args.nthreads << std::endl;
+	std::cout << "tf1: " << args.tf1 << std::endl;
 	
 	
 	

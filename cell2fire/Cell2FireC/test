@@ -1,0 +1,28 @@
+//#include <boost/math/interpolators/bilinear_uniform.hpp>
+#include <iostream>
+#include<array>
+#include <cmath>
+
+using namespace std;
+
+int main()
+{
+    // Create a vector containing integers
+    array<double,5> cfarr{ 1, 1.1, 1.4, 2.8, 3.5};
+    array<double,5> Earr{ 0, .5, .7, .9, .95 };
+    double Eval = .6 ;
+    // Print out the vector
+    for (int i = 0; i < Earr.size(); i++) {
+        if (Earr[i]>Eval) {
+            cout << Earr[i] << "\n";
+            double lb = cfarr[i-1];
+            double ub = cfarr[i];
+            cout << lb << "\n";
+            cout << ub << "\n";
+            cout << std::lerp(lb, ub, (Eval-Earr[i-1])/(Earr[i]-Earr[i-1])) << "\n";
+            
+            break;
+        }
+         
+    }
+}

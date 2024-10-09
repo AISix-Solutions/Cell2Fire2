@@ -89,7 +89,7 @@ std::vector<int> SpottingFBP(std::unordered_map<int, CellsFBP> &  Cells_Obj, std
                 }
             
 				if (a != 0 && b != 0) {
-					double radToDeg = 180 / M_PI;
+					double radToDeg = 180 / 3.14159;
 					double angle = std::atan(b * 1.0 / a) * radToDeg;
 					double distance = std::sqrt(a * a + b * b);
 

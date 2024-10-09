@@ -1,10 +1,12 @@
 EIGENDIR     = /usr/include/eigen3/
 # EIGENDIR     = /usr/local/include/eigen3/ # For Mac only.
 CC = g++
+#CC=C:\rtools43\ucrt64\bin\g++
+#MPCC=C:\rtools43\ucrt64\bin\g++
 MPCC = g++
 OPENMP = -openmp
-CFLAGS = -std=c++11 -O3 -I$(EIGENDIR)
-LIBS = -m64 -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD -lm -lpthread -ldl
+CFLAGS = -std=c++17 -O3 -I$(EIGENDIR)
+LIBS = -m64 -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD -lm -lpthread -ldl -static
 
 TARGETS = Cell2Fire
 all:	$(TARGETS)
@@ -13,7 +15,7 @@ all:	$(TARGETS)
 OS = Ubuntu
 
 # Mode is Parallel if it is not Serial
-MODE=Serial
+MODE=Parallel
 PARALLEL_DIR = parallel_code/Cell2FireParallel/Cell2FireC_Parallel
 
 Cell2Fire: Cell2Fire.o CellsFBP.o FBPfunc5_NoDebug.o SpottingFBP.o ReadCSV.o ReadArgs.o Lightning.o WriteCSV.o Ellipse.o
@@ -23,9 +25,9 @@ ifneq ($(OS), Ubuntu) && ($(OS), OSX))
 $(info OS must be either Ubuntu or OSX)
 endif
 
-ifneq ($(MODE), Serial) && ($(MODE), Parallel))
-$(info MODE must be either Serial or Parallel)
-endif
+#ifneq ($(MODE), Serial) && ($(MODE), Parallel))
+#$(info MODE must be either Serial or Parallel)
+#endif
 
 ifeq ($(MODE), Serial)
 		$(CC) -o $@ $(LIBS) Cell2Fire.o CellsFBP.o FBPfunc5_NoDebug.o SpottingFBP.o ReadCSV.o ReadArgs.o Lightning.o WriteCSV.o Ellipse.o
@@ -51,7 +53,7 @@ endif
 SpottingFBP.o: SpottingFBP.cpp SpottingFBP.h CellsFBP.h
 	$(CC) -c $(CFLAGS) SpottingFBP.cpp CellsFBP.h
 
-CellsFBP.o: CellsFBP.cpp CellsFBP.h FBPfunc5_NoDebug.o
+CellsFBP.o: CellsFBP.cpp CellsFBP.h FBPfunc5_NoDebug.o ReadCSV.h
 	$(CC) -c $(CFLAGS) CellsFBP.cpp
 
 FBPfunc5_NoDebug.o: FBPfunc5_NoDebug.c FBP5.0.h

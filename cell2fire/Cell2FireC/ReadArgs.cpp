@@ -154,8 +154,22 @@ void parseArgs(int argc, char * argv[], arguments * args_ptr)
 	float dEFactor = 1.0;
 	float dinput_PeriodLen= 1.;
 	
+	//GC added tuning factors
+	//float dtf1=4.0;
+	//float dtf2=1.0;
+	//float dtf3=1.0;
+
+	
 	// aux 
 	std::string::size_type sz;
+
+	//GC add tf1
+	//char * tf1 = getCmdOption(argv, argv + argc, "--tf1");
+    //if (tf1){
+    //    printf("tf1: %s \n", tf1);
+	//	args_ptr->tf1 = std::stoi (tf1 ,&sz); 
+    //}
+	//else args_ptr->tf1 = dtf1;
 
 	//--sim-years  (float)
 	char * sim_years = getCmdOption(argv, argv + argc, "--sim-years");
