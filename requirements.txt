@@ -1,9 +1,0 @@
-numpy
-pandas
-matplotlib
-seaborn
-opencv-python
-imread
-tqdm
-deap
-sphinx_rtd_theme
