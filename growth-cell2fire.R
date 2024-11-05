@@ -299,15 +299,19 @@ ignitionFile    <- file.path(tempDir, "Ignitions.csv")
 # Create folders for various outputs
 gridOutputFolder <- "cell2fire-outputs"
 accumulatorOutputFolder <- "cell2fire-accumulator"
+accumulatorIntOutputFolder <- "cell2fire-int-accumulator"
 seasonalAccumulatorOutputFolder <- "cell2fire-accumulator-seasonal"
 allPerimOutputFolder <- "cell2fire-allperim"
 unlink(gridOutputFolder, recursive = T, force = T)
 unlink(accumulatorOutputFolder, recursive = T, force = T)
 unlink(allPerimOutputFolder, recursive = T, force = T)
+unlink(accumulatorIntOutputFolder, recursive = T, force = T)
 dir.create(gridOutputFolder, showWarnings = F)
 dir.create(accumulatorOutputFolder, showWarnings = F)
 dir.create(seasonalAccumulatorOutputFolder, showWarnings = F)
 dir.create(allPerimOutputFolder, showWarnings = F)
+dir.create(accumulatorIntOutputFolder, showWarnings = F)
+
 
 
 ## Function Definitions ----
@@ -388,7 +392,7 @@ getResampleStatus <- function(burnSummary) {
 }
 
 # Function to convert, accumulate, and clean up raw outputs
-processOutputs <- function(batchOutput, rawOutputGridPaths) {
+processOutputs <- function(batchOutput, rawOutputGridPaths,rawIntOutputGridPaths) {
   # Identify which unique fire ID's belong to each iteration
   # - bind_rows is used to ensure iterations aren't lost if all fires in an iteration are discarded due to size
   batchOutput <- batchOutput %>%
@@ -405,7 +409,8 @@ processOutputs <- function(batchOutput, rawOutputGridPaths) {
   
   # Generate burn count maps
   for (i in seq_len(nrow(ignitionsToExportTable)))
-    generateBurnAccumulators(Iteration = ignitionsToExportTable$Iteration[i], UniqueFireIDs = ignitionsToExportTable$UniqueFireIDs[[i]], burnGrids = rawOutputGridPaths, FireIDs = ignitionsToExportTable$FireIDs[[i]], Seasons = ignitionsToExportTable$Seasons[[i]])
+    generateBurnAccumulators(Iteration = ignitionsToExportTable$Iteration[i], UniqueFireIDs = ignitionsToExportTable$UniqueFireIDs[[i]], burnGrids = rawOutputGridPaths,intGrids=rawIntOutputGridPaths, FireIDs = ignitionsToExportTable$FireIDs[[i]], Seasons = ignitionsToExportTable$Seasons[[i]])
+    #generateIntAccumulators(Iteration = ignitionsToExportTable$Iteration[i], UniqueFireIDs = ignitionsToExportTable$UniqueFireIDs[[i]], burnGrids = rawIntOutputGridPaths, FireIDs = ignitionsToExportTable$FireIDs[[i]])
 }
 
 # Function to call Cell2Fire on the (global) parameter file
@@ -450,6 +455,7 @@ runBatch <- function(batchInputs) {
   
   # Get relative paths to all raw outputs
   rawOutputGridPaths <- file.path(gridOutputFolder, "Grids",paste("ForestGrid",seq(numIgnitions),".csv",sep=""))
+  rawIntOutputGridPaths <- file.path(gridOutputFolder, "Grids",paste("IntGrid",seq(numIgnitions),".csv",sep=""))
   
   # Get burn areas
   burnAreas <- getBurnAreas(rawOutputGridPaths)
@@ -464,7 +470,7 @@ runBatch <- function(batchInputs) {
   
   # Save GeoTiffs if needed
   if(saveBurnMaps)
-    processOutputs(batchOutput, rawOutputGridPaths)
+    processOutputs(batchOutput, rawOutputGridPaths,rawIntOutputGridPaths)
   
   # Clear up temp files
   resetFolder(gridOutputFolder)
@@ -561,8 +567,9 @@ generateIgnitionFile <- function(CellIDs){
     fwrite(ignitionFile)
 }
 
+
 # Function to summarize individual burn grids by iteration
-generateBurnAccumulators <- function(Iteration, UniqueFireIDs, burnGrids, FireIDs, Seasons) {
+generateBurnAccumulators <- function(Iteration, UniqueFireIDs, burnGrids, intGrids, FireIDs, Seasons) {
   # For iteration zero (fires for resampling), only save individual burn maps
   if(Iteration == 0) {
     for(i in seq_along(UniqueFireIDs)){
@@ -584,6 +591,7 @@ generateBurnAccumulators <- function(Iteration, UniqueFireIDs, burnGrids, FireID
   
   # initialize empty matrix
   accumulator <- matrix(0, nrow(fuelsRaster), ncol(fuelsRaster))
+  intAccumulator <- matrix(0, nrow(fuelsRaster), ncol(fuelsRaster))
   
   # initialize a list of empty matrices for each season
   seasonValues <- SeasonTable %>%
@@ -601,6 +609,9 @@ generateBurnAccumulators <- function(Iteration, UniqueFireIDs, burnGrids, FireID
       # Read in and add current burn map
       burnArea <- as.matrix(fread(burnGrids[UniqueFireIDs[i]],header = F))
       accumulator <- accumulator + burnArea
+
+      burnInt <- as.matrix(fread(intGrids[UniqueFireIDs[i]],header = F))
+      intAccumulator <- intAccumulator + burnInt
       
       # Add to seasonal accumulator
       if(saveSeasonalBurnMaps) {
@@ -634,6 +645,17 @@ generateBurnAccumulators <- function(Iteration, UniqueFireIDs, burnGrids, FireID
                 wopt = list(filetype = "GTiff",
                             datatype = "INT4S",
                             gdal = c("COMPRESS=DEFLATE","ZLEVEL=9","PREDICTOR=2")))
+  
+  if(OutputOptionsSpatial$BurnPerimeter) {
+    rast(fuelsRaster, vals = intAccumulator) %>%
+      mask(fuelsRaster) %>%
+      writeRaster(str_c(accumulatorIntOutputFolder, "/it_int_", Iteration, ".tif"), 
+                  overwrite = T,
+                  NAflag = -9999,
+                  wopt = list(filetype = "GTiff",
+                              datatype = "INT4S",
+                              gdal = c("COMPRESS=DEFLATE","ZLEVEL=9","PREDICTOR=2")))
+  }
   
   # Repeat for each seasonal accumulator
   if(saveSeasonalBurnMaps) {
@@ -847,6 +869,7 @@ if(saveBurnMaps) {
       Season = "All") %>%
     filter(Iteration %in% iterations) %>%
     as.data.frame
+
   
   if(saveSeasonalBurnMaps) {
     # If seasonal burn maps have been saved, append them to the table
@@ -865,6 +888,8 @@ if(saveBurnMaps) {
   
   # Output if there are records to save
   if(nrow(OutputBurnMap) > 0)
+    
+    
     saveDatasheet(myScenario, OutputBurnMap, "burnP3Plus_OutputBurnMap", append = T)
   
   updateRunLog("Finished accumulating burn maps in ", updateBreakpoint())
@@ -894,7 +919,17 @@ if(OutputOptionsSpatial$AllPerim | (saveBurnMaps & minimumFireSize > 0)){
 
 ## Burn perimeters ----
 if(OutputOptionsSpatial$BurnPerimeter) {
-  updateRunLog("Cell2Fire does not provide burn perimeters.", type = "info")
+  OutputIntMap <- 
+    tibble(
+      FileName = list.files(accumulatorIntOutputFolder, full.names = T) %>% normalizePath(),
+      Iteration = str_extract(FileName, "\\d+.tif") %>% str_sub(end = -5) %>% as.integer(),
+      Timestep = 0,
+      Season = "All") %>%
+    filter(Iteration %in% iterations) %>%
+    as.data.frame
+  
+  saveDatasheet(myScenario, OutputIntMap, "burnP3Plus_OutputFirePerimeter", append = T)
+  #updateRunLog("Cell2Fire does not provide burn perimeters.", type = "info")
 }
 
 # Clean up

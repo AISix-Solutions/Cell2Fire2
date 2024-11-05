@@ -80,6 +80,7 @@ class Cell2Fire {
 		 std::vector<int> IgnitionPoints;
 		 vector<int> burnedOutList;
 		 std::vector<double> FSCell;
+		 std::vector<float>Intensities;
 		 //std::vector<unordered_set<int>> IgnitionSets;
 		 std::vector<std::vector<int>> IgnitionSets;
 		 

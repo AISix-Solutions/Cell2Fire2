@@ -75,13 +75,13 @@ class CellsFBP {
                                                           inputs * df, fuel_coefs * coef, 
 														  std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
 														  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
-														  double randomROS);
+														  double randomROS, std::vector<float> & Intensities);
 		
 		std::vector<int> manageFireBBO(int period, std::unordered_set<int> & AvailSet,      
 															inputs * df_ptr, fuel_coefs * coef, 
 															std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
 															arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
-															double randomROS, std::vector<float> & EllipseFactors);
+															double randomROS, std::vector<float> & EllipseFactors, std::vector<float> & Intensities);
 		
 		bool get_burned(int period, int season, int NMsg, inputs df[],  fuel_coefs * coef, arguments * args, weatherDF * wdf_ptr) ;
 								

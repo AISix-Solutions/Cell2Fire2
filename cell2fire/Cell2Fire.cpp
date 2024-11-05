@@ -191,6 +191,7 @@ Cell2Fire::Cell2Fire(arguments _args) : CSVWeather(_args.InFolder + "Weather.csv
 	this->fTypeCells = std::vector<int> (this->nCells, 1); 
 	this->fTypeCells2 = std::vector<string> (this->nCells, "Burnable"); 
     this->statusCells = std::vector<int> (this->nCells, 0);
+	this->Intensities = std::vector<float> (this->nCells, 0);
 	
 	// Non burnable types: populate relevant fields such as status and ftype
 	std::string NoFuel = "NF ";
@@ -525,6 +526,7 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	this->fTypeCells = std::vector<int> (this->nCells, 1); 
 	this->fTypeCells2 = std::vector<string> (this->nCells, "Burnable"); 
 	this->statusCells = std::vector<int> (this->nCells, 0);
+	this->Intensities = std::vector<float> (this->nCells, 0);
 	this->FSCell.clear();
 	
 	// Non burnable types: populate relevant fields such as status and ftype
@@ -815,7 +817,7 @@ std::unordered_map<int, std::vector<int>> Cell2Fire::SendMessages(){
 			if (!this->args.BBOTuning){
 				aux_list = it->second.manageFire(this->fire_period[this->year-1], this->availCells,  & df[cell-1], this->coef_ptr, 
 															   this->coordCells, this->Cells_Obj, this->args_ptr, &wdf[this->weatherPeriod],
-															   &this->FSCell, this->ROSRV);
+															   &this->FSCell, this->ROSRV, this->Intensities);
 	
 			}
 												
@@ -824,7 +826,7 @@ std::unordered_map<int, std::vector<int>> Cell2Fire::SendMessages(){
 				auto factors = BBOFactors.find(NFTypesCells[cell-1]);
 				aux_list = it->second.manageFireBBO(this->fire_period[this->year-1], this->availCells,  & df[cell-1], this->coef_ptr, 
 																		this->coordCells, this->Cells_Obj, this->args_ptr, &wdf[this->weatherPeriod],
-																		&this->FSCell, this->ROSRV, factors->second);								
+																		&this->FSCell, this->ROSRV, factors->second, this->Intensities);								
 			}
 			//std::cout << "Sale de Manage Fire" << std::endl;
 		} 
@@ -1169,6 +1171,7 @@ void Cell2Fire::Results(){
 		else
 			this->gridFolder = this->args.OutFolder + "\\Grids"  + "\\";
 		//std::string gridName = this->gridFolder + "FinalStatus_" + std::to_string(this->sim) + ".csv";
+		
 		outputGrid();
 		
 		/*if(this->args.verbose){
@@ -1223,6 +1226,7 @@ void Cell2Fire::Results(){
 void Cell2Fire::outputGrid(){
 	// FileName
 	std::string gridName;
+	std::string gridNameInt;
 	std::vector<int> statusCells2(this->nCells, 0); //(long int, int);
 	
 	// Update status 
@@ -1244,6 +1248,11 @@ void Cell2Fire::outputGrid(){
 	
 	CSVWriter CSVPloter(gridName, ",");
 	CSVPloter.printCSV_V2(this->rows, this->cols, statusCells2);
+
+	std::vector<int> IntensitiesRound(Intensities.begin(), Intensities.end());
+	gridNameInt = this->gridFolder+ "IntGrid" + std::to_string(this->sim) + ".csv";
+	CSVWriter CSVPloter2(gridNameInt, ",");
+	CSVPloter2.printCSV_V2(this->rows, this->cols, IntensitiesRound);
 	this->gridNumber++;
 }
 

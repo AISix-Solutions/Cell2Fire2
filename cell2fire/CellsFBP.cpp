@@ -397,7 +397,7 @@ void CellsFBP::ros_distr(double thetafire, double forward, double flank, double 
 		int ex1_n=a, ex1_e=b;
 		
 		//Flip E and N if we flipped rise/run above and make sure we're in the 
-		//right quadrant. This is all done  to make finding the desired Farey 
+		//right quadrant. This is all done to make finding the desired Farey 
 		//fraction faster by exploiting radial symmetry
 		if (flip==1){
 			std::swap(ex1_n, ex1_e);
@@ -533,7 +533,7 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
                                                           inputs * df_ptr, fuel_coefs * coef, 
 														  std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
 														  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
-														  double randomROS) 
+														  double randomROS,std::vector<float> &Intensities) 
 	{
 	// Special flag for repetition (False = -99 for the record)
 	int repeat = -99;
@@ -725,6 +725,8 @@ std::vector<int> CellsFBP::manageFire(int period, std::unordered_set<int> & Avai
 				FSCell->push_back(double(nb));
 				FSCell->push_back(double(period));
 				FSCell->push_back(ros);
+				Intensities[this->realId - 1] = mainstruct.sfi;
+
                 // cannot mutate ROSangleDir during iteration.. we do it like 10 lines down
                // toPop.push_back(angle);
                 /*if (verbose) {
@@ -784,7 +786,7 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 																  inputs * df_ptr, fuel_coefs * coef, 
 																  std::vector<std::vector<int>> & coordCells, std::unordered_map<int, CellsFBP> & Cells_Obj, 
 																  arguments * args, weatherDF * wdf_ptr, std::vector<double> * FSCell,
-																  double randomROS, std::vector<float> & EllipseFactors) 
+																  double randomROS, std::vector<float> & EllipseFactors,std::vector<float> &Intensities) 
 	{
 	// Special flag for repetition (False = -99 for the record)
 	int repeat = -99;
@@ -965,6 +967,7 @@ std::vector<int> CellsFBP::manageFireBBO(int period, std::unordered_set<int> & A
 				FSCell->push_back(double(nb));
 				FSCell->push_back(double(period));
 				FSCell->push_back(ros);
+				Intensities[this->realId - 1] = mainstruct.sfi;
                 // cannot mutate ROSangleDir during iteration.. we do it like 10 lines down
                // toPop.push_back(angle);
                 /*if (verbose) {
