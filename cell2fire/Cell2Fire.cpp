@@ -467,10 +467,10 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	// Initial status grid folder
 	if(this->args.OutputGrids){
 		CSVWriter CSVFolder("","");
-		this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids";
+		this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
 		//this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
-		this->gridFolder = this->args.OutFolder + "\\Grids";
+		this->gridFolder = this->args.OutFolder + "/Grids";
 		//DEBUGstd::cout << "\nInitial Grid folder was generated in " << this->gridFolder << std::endl;
 	}
 	
@@ -1160,16 +1160,16 @@ void Cell2Fire::Results(){
 		CSVWriter CSVFolder("","");
 		if (this->args.OutFolder.empty())
 			//this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
-			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids";
+			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts/Grids";
 		else
 			//this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
-			this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids";
+			this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
 		CSVFolder.MakeDir(this->gridFolder);
 		
 		if (this->args.OutFolder.empty())
-			this->gridFolder = this->args.InFolder + "simOuts\\Grids" + "\\";
+			this->gridFolder = this->args.InFolder + "simOuts/Grids" + "/";
 		else
-			this->gridFolder = this->args.OutFolder + "\\Grids"  + "\\";
+			this->gridFolder = this->args.OutFolder + "/Grids"  + "/";
 		//std::string gridName = this->gridFolder + "FinalStatus_" + std::to_string(this->sim) + ".csv";
 		
 		outputGrid();
@@ -1241,7 +1241,7 @@ void Cell2Fire::outputGrid(){
 	}
 
 	gridName = this->gridFolder+ "ForestGrid" + std::to_string(this->sim) + ".csv";
-	
+	std::cout << "Year: " << gridName << std::endl;
 	if(this->args.verbose){
 		std::cout  << "We are plotting the current forest to a csv file " << gridName << std::endl;
 	}
