@@ -467,8 +467,8 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	// Initial status grid folder
 	if(this->args.OutputGrids){
 		CSVWriter CSVFolder("","");
-		this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
-		//this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+		//this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
+		this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
 		this->gridFolder = this->args.OutFolder + "/Grids";
 		//DEBUGstd::cout << "\nInitial Grid folder was generated in " << this->gridFolder << std::endl;
@@ -489,14 +489,19 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	std::cout << "Weather Option rows check:" << (this->args.WeatherOpt.compare("rows") == 0) << std::endl;
 	*/
 	
+	//Modified by GC to sample weather sequentially
 	if(this->args.WeatherOpt.compare("random") == 0){
 		// Random Weather
-		 	
+		
+
 		this->CSVWeather.fileName = this->args.InFolder + "Weathers/Weather" + std::to_string(this->sim) + ".csv" ;
 		
 		/* Weather DataFrame */
     try {
-      this->WeatherDF = this->CSVWeather.getData();
+    	this->WeatherDF = this->CSVWeather.getData();
+		//Recalc max fire periods to simulate for new WeatherDF 
+	  	int maxFP = (this->args.MinutesPerWP / this->args.FirePeriodLen) * (WeatherDF.size()-1);
+		this->args.MaxFirePeriods=maxFP; 
     } catch (std::invalid_argument& e) {
       std::cerr << e.what() << std::endl;
       std::abort();
@@ -732,8 +737,9 @@ bool Cell2Fire::RunIgnition(std::default_random_engine generator){
 	
 	// Check weather period consistency
 	updateWeather();
-	
 	// Print-out information regarding the weather and fire period
+
+	
 	if (this->args.verbose){
 		std::cout << "Fire Period Starts: " <<  this->fire_period[year-1] << std::endl;
 		std::cout << "\nCurrent weather conditions:" << std::endl;
@@ -1155,15 +1161,17 @@ void Cell2Fire::Results(){
 	std::cout << "Total Non-Burnable Cells: " << NBCells << " - % of the Forest: " <<  NBCells/nCells*100.0 <<"%"<< std::endl;
 	std::cout << "Total Harvested Cells: " << HCells << " - % of the Forest: " <<  HCells/nCells*100.0 <<"%"<< std::endl;
 
+	
+
 	// Final Grid 
 	if(this->args.FinalGrid){
 		CSVWriter CSVFolder("","");
 		if (this->args.OutFolder.empty())
-			//this->gridFolder = "mkdir -p " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
-			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts/Grids";
+			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
+			//this->gridFolder = "mkdir " + this->args.InFolder + "simOuts/Grids";
 		else
-			//this->gridFolder = "mkdir -p " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
-			this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
+			this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+			//this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
 		CSVFolder.MakeDir(this->gridFolder);
 		
 		if (this->args.OutFolder.empty())
@@ -1492,9 +1500,12 @@ int main(int argc, char * argv[]){
 		rnumber = udistribution(generator);
 		rnumber2 = ndistribution(generator);
 		
+
+		
 		// Reset
     Forest.reset(rnumber, rnumber2);
 	
+
 		// Time steps during horizon (or until we break it)
 		for (tstep = 0; tstep <= Forest.args.MaxFirePeriods * Forest.args.TotalYears ; tstep++){   
 			//DEBUGprintf("\n ---- tstep %d \n", tstep);
