@@ -38,7 +38,7 @@ using namespace std;
 inputs * df_ptr;
 weatherDF * wdf_ptr;
 weatherDF wdf[150];
-inputs df [1560000];
+inputs df [2560000];
 std::unordered_map<int, std::vector<float>> BBOFactors;
 std::unordered_map<int, std::vector<int>> HarvestedCells;   
 std::vector<int> NFTypesCells;
@@ -467,8 +467,8 @@ void Cell2Fire::reset(int rnumber, double rnumber2){
 	// Initial status grid folder
 	if(this->args.OutputGrids){
 		CSVWriter CSVFolder("","");
-		//this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
-		this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+		this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
+		//this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
 		CSVFolder.MakeDir(this->gridFolder);
 		this->gridFolder = this->args.OutFolder + "/Grids";
 		//DEBUGstd::cout << "\nInitial Grid folder was generated in " << this->gridFolder << std::endl;
@@ -1167,11 +1167,11 @@ void Cell2Fire::Results(){
 	if(this->args.FinalGrid){
 		CSVWriter CSVFolder("","");
 		if (this->args.OutFolder.empty())
-			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
-			//this->gridFolder = "mkdir " + this->args.InFolder + "simOuts/Grids";
+			//this->gridFolder = "mkdir " + this->args.InFolder + "simOuts\\Grids\\Grids" + std::to_string(this->sim);
+			this->gridFolder = "mkdir " + this->args.InFolder + "simOuts/Grids";
 		else
-			this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
-			//this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
+			//this->gridFolder = "mkdir " + this->args.OutFolder + "\\Grids\\Grids" + std::to_string(this->sim);
+			this->gridFolder = "mkdir " + this->args.OutFolder + "/Grids";
 		CSVFolder.MakeDir(this->gridFolder);
 		
 		if (this->args.OutFolder.empty())
